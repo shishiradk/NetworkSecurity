@@ -4,7 +4,7 @@ numpy
 pymongo
 certifi
 scikit-learn
-
+mlflow
 pyaml
 
 pymongo[srv]
