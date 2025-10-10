@@ -93,8 +93,8 @@ class ModelTrainer:
         test_metrics = get_classification_score(y_true=y_test, y_pred=y_test_pred)
         
 
-        # self.track_mlflow(best_model_name, best_model, train_metrics)
-        # self.track_mlflow(best_model_name, best_model, test_metrics)
+        self.track_mlflow(best_model_name, best_model, train_metrics)
+        self.track_mlflow(best_model_name, best_model, test_metrics)
 
         preprocessor = load_object(file_path=self.data_transformation_artifact.transformed_object_file_path)
 
