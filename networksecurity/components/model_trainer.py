@@ -2,8 +2,8 @@ import os
 import sys
 from urllib.parse import urlparse
 import mlflow
+import mlflow.sklearn
 from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import (
     AdaBoostClassifier,
@@ -24,10 +24,8 @@ from networksecurity.utils.main_utils.utils import (
 )
 from networksecurity.utils.ml_utils.metric.classification_metric import get_classification_score
 
-# DagsHub setup
-# os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/krishnaik06/networksecurity.mlflow"
-# os.environ["MLFLOW_TRACKING_USERNAME"] = "krishnaik06"
-# os.environ["MLFLOW_TRACKING_PASSWORD"] = "7104284f1bb44ece21e0e2adb4e36a250ae3251f"
+import dagshub
+dagshub.init(repo_owner='shishiradk', repo_name='NetworkSecurity', mlflow=True)
 
 
 class ModelTrainer:
@@ -39,23 +37,29 @@ class ModelTrainer:
             raise NetworkSecurityException(e, sys)
 
     def track_mlflow(self, model_name: str, best_model, classification_metric):
-        # mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
-        # tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
-        with mlflow.start_run():
-            f1_score = classification_metric.f1_score
-            precision = classification_metric.precision_score
-            recall = classification_metric.recall_score
-            
-            
-            # mlflow.log_param("model_name", model_name)
-            mlflow.log_metric("f1_score", classification_metric.f1_score)
-            mlflow.log_metric("precision", classification_metric.precision_score)
-            mlflow.log_metric("recall", classification_metric.recall_score)
+        """
+        Logs model parameters and metrics to MLflow (DagsHub).
+        Skips model upload to avoid DagsHub unsupported endpoint error.
+        """
+        try:
+            mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "https://dagshub.com/shishiradk/NetworkSecurity.mlflow"))
+            tracking_url_type_store = urlparse(mlflow.get_tracking_uri()).scheme
 
-            # if tracking_url_type_store != "file":
-            #     mlflow.sklearn.log_model(best_model, "model", registered_model_name=model_name)
-            # else:
-            mlflow.sklearn.log_model(best_model, "model")
+            with mlflow.start_run(run_name=model_name):
+                mlflow.log_param("model_name", model_name)
+                mlflow.log_metric("f1_score", classification_metric.f1_score)
+                mlflow.log_metric("precision", classification_metric.precision_score)
+                mlflow.log_metric("recall", classification_metric.recall_score)
+
+                #  Instead of logging model directly (unsupported by DagsHub),
+                #    save it locally and log its file path
+                local_model_path = f"mlruns_saved/{model_name}_model.pkl"
+                os.makedirs("mlruns_saved", exist_ok=True)
+                save_object(local_model_path, best_model)
+                mlflow.log_artifact(local_model_path)
+
+        except Exception as e:
+            raise NetworkSecurityException(e, sys)
 
     def train_model(self, X_train, y_train, X_test, y_test):
         models = {
@@ -91,17 +95,15 @@ class ModelTrainer:
 
         train_metrics = get_classification_score(y_true=y_train, y_pred=y_train_pred)
         test_metrics = get_classification_score(y_true=y_test, y_pred=y_test_pred)
-        
 
+        #  Log metrics to DagsHub, model locally
         self.track_mlflow(best_model_name, best_model, train_metrics)
         self.track_mlflow(best_model_name, best_model, test_metrics)
 
         preprocessor = load_object(file_path=self.data_transformation_artifact.transformed_object_file_path)
-
         os.makedirs(os.path.dirname(self.model_trainer_config.trained_model_file_path), exist_ok=True)
-        network_model = NetworkModel(preprocessor=preprocessor, model=best_model)
 
-        #  Save the correct object (previously you were saving the class itself)
+        network_model = NetworkModel(preprocessor=preprocessor, model=best_model)
         save_object(self.model_trainer_config.trained_model_file_path, obj=network_model)
         save_object("final_model/model.pkl", best_model)
 
