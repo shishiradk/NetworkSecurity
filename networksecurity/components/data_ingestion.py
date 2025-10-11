@@ -1,33 +1,27 @@
 from networksecurity.exception.exception import NetworkSecurityException
 from networksecurity.logging.logger import logging
 
-## configuration of the data ingestion config
 from networksecurity.entity.config_entity import DataIngestionConfig
 from networksecurity.entity.artifact_entity import DataIngestionArtifact
 
 import os, sys
 import numpy as np
 import pymongo
-from typing import List
 import pandas as pd
 from sklearn.model_selection import train_test_split
-
 from dotenv import load_dotenv
 load_dotenv()
 
 MONGO_DB_URL = os.getenv("MONGO_DB_URL")
 
 class DataIngestion:
-    def __init__(self, data_Ingestion_config: DataIngestionConfig):
+    def __init__(self, data_ingestion_config: DataIngestionConfig):
         try:
-            self.data_ingestion_config = data_Ingestion_config
+            self.data_ingestion_config = data_ingestion_config
         except Exception as e:
             raise NetworkSecurityException(e, sys) from e
         
     def export_collection_as_dataframe(self):
-        """
-        Read data from mongo db
-        """
         try:
             database_name = self.data_ingestion_config.database_name
             collection_name = self.data_ingestion_config.collection_name         
@@ -50,7 +44,6 @@ class DataIngestion:
             os.makedirs(dir_path, exist_ok=True)
             dataframe.to_csv(feature_store_file_path, index=False, header=True)
             return dataframe
-            
         except Exception as e:
             raise NetworkSecurityException(e, sys)
         
@@ -83,11 +76,10 @@ class DataIngestion:
             dataframe = self.export_collection_as_dataframe()
             dataframe = self.export_data_into_feature_store(dataframe)
             self.split_data_as_train_test(dataframe)
-            dataingestionartifact = DataIngestionArtifact(
+            data_ingestion_artifact = DataIngestionArtifact(
                 trained_file_path=self.data_ingestion_config.training_file_path,
                 test_file_path=self.data_ingestion_config.testing_file_path
             )
-            return dataingestionartifact
-
+            return data_ingestion_artifact
         except Exception as e:
             raise NetworkSecurityException(e, sys)
