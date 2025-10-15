@@ -33,7 +33,7 @@ setup(
     name="NetworkSecurity",
     version="0.0.1",
     author="Shishir",
-    author_email="shishiradhikari444@gmail.com",
+    author_email="adhikarishishir11@gmail.com",
     packages=find_packages(),
     install_requires=get_requirements(),
 )
